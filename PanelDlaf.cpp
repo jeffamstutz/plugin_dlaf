@@ -72,10 +72,13 @@ namespace ospray {
           });
         }
 
-        if (jobRunning)
-          ImGui::Text("...generating data: %3.1f%% complete", 100 * done);
-        else
+        if (jobRunning) {
+          ImGui::Text("generating data: ");
+          ImGui::SameLine();
+          ImGui::ProgressBar(done);
+        } else {
           ImGui::NewLine();
+        }
 
         ImGui::Separator();
 
