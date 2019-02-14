@@ -14,8 +14,13 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
-namespace dlaf {
+// ospcommon
+#include "ospcommon/containers/AlignedVector.h"
+#include "ospcommon/vec.h"
 
-  void compute_points();
+namespace dlaf {
+  using namespace ospcommon;
+
+  containers::AlignedVector<vec3f> compute_points();
 
 } // namespace dlaf

@@ -26,7 +26,7 @@ if (BUILD_PLUGIN_DLAF)
     dlaf.cpp
   )
 
-  target_link_libraries(ospray_studio_plugin_dlaf
+  target_link_libraries(ospray_studio_plugin_dlaf PUBLIC
     ospray_studio
     Boost::boost
   )

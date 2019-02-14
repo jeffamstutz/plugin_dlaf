@@ -20,23 +20,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include "dlaf.h"
 // stl
 #include <chrono>
-#include <iostream>
 #include <random>
-#include <vector>
 // boost
 #include <boost/function_output_iterator.hpp>
 #include <boost/geometry/geometry.hpp>
-// ospcommon
-#include "ospcommon/vec.h"
 
 namespace dlaf {
 
   using namespace ospcommon;
 
   // number of dimensions (must be 2 or 3)
-  static constexpr int D = 2;
+  static constexpr int D = 3;
 
   // default parameters (documented below)
   static constexpr double DefaultParticleSpacing    = 1;
@@ -130,8 +127,6 @@ namespace dlaf {
       m_JoinAttempts.push_back(0);
       m_BoundingRadius =
           std::max(m_BoundingRadius, length(p) + m_AttractionDistance);
-      std::cout << id << "," << parent << "," << p.x << "," << p.y << "," << p.z
-                << std::endl;
     }
 
     // Nearest returns the index of the particle nearest the specified point
@@ -225,6 +220,11 @@ namespace dlaf {
       }
     }
 
+    containers::AlignedVector<vec3f> consumeFinalPoints()
+    {
+      return std::move(m_Points);
+    }
+
    private:
     // m_ParticleSpacing defines the distance between particles that are
     // joined together
@@ -251,30 +251,43 @@ namespace dlaf {
     double m_BoundingRadius;
 
     // m_Points stores the final particle positions
-    std::vector<vec3f> m_Points;
+    containers::AlignedVector<vec3f> m_Points;
 
     // m_JoinAttempts tracks how many times other particles have attempted to
     // join with each finalized particle
-    std::vector<int> m_JoinAttempts;
+    containers::AlignedVector<int> m_JoinAttempts;
 
     // m_Index is the spatial index used to accelerate nearest neighbor queries
     Index m_Index;
   };
 
-  void compute_points()
+  containers::AlignedVector<vec3f> compute_points()
   {
-#if 0
-  // create the model
-  Model model;
+    // create the model
+    Model model;
 
-  // add seed point(s)
-  model.Add(vec3f());
-
-  // run diffusion-limited aggregation
-  for (int i = 0; i < 100000; i++) {
-    model.AddParticle();
-  }
+    // add seed point(s)
+#if 1
+    model.Add(vec3f(0.f));
+#else
+    {
+      const int n    = 3600;
+      const double r = 1000;
+      for (int i = 0; i < n; i++) {
+        const double t = (double)i / n;
+        const double a = t * 2 * M_PI;
+        const double x = std::cos(a) * r;
+        const double y = std::sin(a) * r;
+        model.Add(vec3f(x, y, 0));
+      }
+    }
 #endif
+
+    // run diffusion-limited aggregation
+    for (int i = 0; i < 100000; i++)
+      model.AddParticle();
+
+    return std::move(model.consumeFinalPoints());
   }
 
 }  // namespace dlaf

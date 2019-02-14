@@ -15,29 +15,61 @@
 // ======================================================================== //
 
 #include "PanelDlaf.h"
-
+// imgui
+#include "../../app/widgets/sg_ui/ospray_sg_ui.h"
 #include "imgui.h"
+// jobs
+#include "../../app/jobs/JobScheduler.h"
+// dlaf
+#include "dlaf.h"
+// ospray_sg
+#include "sg/common/Data.h"
 
 namespace ospray {
   namespace dlaf_plugin {
+    using namespace sg;
 
-    PanelDlaf::PanelDlaf() : Panel("Dlaf Panel") {}
+    PanelDlaf::PanelDlaf() : Panel("dlaf Panel") {}
 
     void PanelDlaf::buildUI()
     {
-      ImGui::OpenPopup("Dlaf Panel");
+      auto flags = g_defaultWindowFlags | ImGuiWindowFlags_AlwaysAutoResize;
+      if (ImGui::Begin("dlaf Panel", nullptr, flags)) {
+        ImGui::Text("Diffusion-Limited Aggregation Parameters:");
 
-      if (ImGui::BeginPopupModal(
-              "Dlaf Panel", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("%s", "Hello from the dlaf plugin!");
-        ImGui::Separator();
+        ImGui::NewLine();
+        ImGui::Text("TODO: ui configurable parameters");
+        ImGui::NewLine();
 
-        if (ImGui::Button("Close")) {
-          setShown(false);
-          ImGui::CloseCurrentPopup();
+        if (ImGui::Button("Compute New")) {
+          job_scheduler::scheduleJob([&]() {
+            job_scheduler::Nodes retval;
+            auto spheres_node = createNode("dlaf_spheres", "Spheres");
+
+            auto sphere_centers = std::make_shared<DataVector3f>();
+            sphere_centers->setName("spheres");
+
+            auto vertices     = dlaf::compute_points();
+            sphere_centers->v = std::move(vertices);
+
+            spheres_node->add(sphere_centers);
+
+            spheres_node->createChild("radius", "float", 1.f);
+            spheres_node->createChild(
+                "bytes_per_sphere", "int", int(sizeof(vec3f)));
+
+            retval.push_back(spheres_node);
+            return retval;
+          });
         }
 
-        ImGui::EndPopup();
+        ImGui::NewLine();
+        ImGui::Separator();
+
+        if (ImGui::Button("Close"))
+          setShown(false);
+
+        ImGui::End();
       }
     }
 
