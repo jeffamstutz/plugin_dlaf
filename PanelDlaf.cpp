@@ -42,42 +42,40 @@ namespace ospray {
         ImGui::NewLine();
 
         static bool jobRunning = false;
-        static float done = 0.f;
-
-        if (ImGui::Button("Compute New")) {
-          done = 0.f;
-          job_scheduler::scheduleJob([&]() {
-            jobRunning = true;
-
-            job_scheduler::Nodes retval;
-            auto spheres_node = createNode("dlaf_spheres", "Spheres");
-
-            auto sphere_centers = std::make_shared<DataVector3f>();
-            sphere_centers->setName("spheres");
-
-            auto vertices     = dlaf::compute_points(done);
-            sphere_centers->v = std::move(vertices);
-
-            spheres_node->add(sphere_centers);
-
-            spheres_node->createChild("radius", "float", 1.f);
-            spheres_node->createChild(
-                "bytes_per_sphere", "int", int(sizeof(vec3f)));
-
-            retval.push_back(spheres_node);
-
-            jobRunning = false;
-
-            return retval;
-          });
-        }
+        static float done      = 0.f;
 
         if (jobRunning) {
           ImGui::Text("generating data: ");
           ImGui::SameLine();
           ImGui::ProgressBar(done);
         } else {
-          ImGui::NewLine();
+          if (ImGui::Button("Compute New")) {
+            done = 0.f;
+            job_scheduler::scheduleJob([&]() {
+              jobRunning = true;
+
+              job_scheduler::Nodes retval;
+              auto spheres_node = createNode("dlaf_spheres", "Spheres");
+
+              auto sphere_centers = std::make_shared<DataVector3f>();
+              sphere_centers->setName("spheres");
+
+              auto vertices     = dlaf::compute_points(done);
+              sphere_centers->v = std::move(vertices);
+
+              spheres_node->add(sphere_centers);
+
+              spheres_node->createChild("radius", "float", 1.f);
+              spheres_node->createChild(
+                  "bytes_per_sphere", "int", int(sizeof(vec3f)));
+
+              retval.push_back(spheres_node);
+
+              jobRunning = false;
+
+              return retval;
+            });
+          }
         }
 
         ImGui::Separator();
