@@ -41,8 +41,12 @@ namespace ospray {
         ImGui::Text("TODO: ui configurable parameters");
         ImGui::NewLine();
 
+        static bool jobRunning = false;
+
         if (ImGui::Button("Compute New")) {
           job_scheduler::scheduleJob([&]() {
+            jobRunning = true;
+
             job_scheduler::Nodes retval;
             auto spheres_node = createNode("dlaf_spheres", "Spheres");
 
@@ -59,11 +63,18 @@ namespace ospray {
                 "bytes_per_sphere", "int", int(sizeof(vec3f)));
 
             retval.push_back(spheres_node);
+
+            jobRunning = false;
+
             return retval;
           });
         }
 
-        ImGui::NewLine();
+        if (jobRunning)
+          ImGui::Text("...generating data...");
+        else
+          ImGui::NewLine();
+
         ImGui::Separator();
 
         if (ImGui::Button("Close"))
