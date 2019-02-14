@@ -21,6 +21,29 @@
 namespace dlaf {
   using namespace ospcommon;
 
-  containers::AlignedVector<vec3f> compute_points(float &done);
+  struct DLAF_Params
+  {
+    int NumParticles = 100000;
+    // m_ParticleSpacing defines the distance between particles that are
+    // joined together
+    float ParticleSpacing = 1;
+    // m_AttractionDistance defines how close together particles must be in
+    // order to join together
+    float AttractionDistance = 3;
+    // m_MinMoveDistance defines the minimum distance that a particle will move
+    // during its random walk
+    float MinMoveDistance = 1;
+    // m_Stubbornness defines how many interactions must occur before a
+    // particle will allow another particle to join to it.
+    int Stubbornness = 0;
+    // m_Stickiness defines the probability that a particle will allow another
+    // particle to join to it.
+    float Stickiness = 1;
+    // m_BoundingRadius defines the radius of the bounding sphere that bounds
+    // all of the particles
+    float BoundingRadius = 0;
+  };
 
-} // namespace dlaf
+  containers::AlignedVector<vec3f> compute_points(DLAF_Params p, float &done);
+
+}  // namespace dlaf

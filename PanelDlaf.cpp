@@ -35,10 +35,21 @@ namespace ospray {
     {
       auto flags = g_defaultWindowFlags | ImGuiWindowFlags_AlwaysAutoResize;
       if (ImGui::Begin("dlaf Panel", nullptr, flags)) {
-        ImGui::Text("Diffusion-Limited Aggregation Parameters:");
+        static dlaf::DLAF_Params params;
+
+        if (ImGui::Button("reset"))
+          params = dlaf::DLAF_Params();
 
         ImGui::NewLine();
-        ImGui::Text("TODO: ui configurable parameters");
+        ImGui::DragInt("# particles", &params.NumParticles, 10, 0, 1e9f);
+        ImGui::DragFloat("spacing", &params.ParticleSpacing, 0.1f);
+        ImGui::DragFloat(
+            "attraction distance", &params.AttractionDistance, 0.1f);
+        ImGui::DragFloat("min move dist", &params.MinMoveDistance, 0.1f);
+        ImGui::DragInt("stubbornness", &params.Stubbornness, 1);
+        ImGui::DragFloat("stickiness", &params.Stickiness, 0.1f);
+        ImGui::NewLine();
+
         ImGui::NewLine();
 
         static bool jobRunning = false;
@@ -60,7 +71,7 @@ namespace ospray {
               auto sphere_centers = std::make_shared<DataVector3f>();
               sphere_centers->setName("spheres");
 
-              auto vertices     = dlaf::compute_points(done);
+              auto vertices     = dlaf::compute_points(params, done);
               sphere_centers->v = std::move(vertices);
 
               spheres_node->add(sphere_centers);
@@ -78,6 +89,7 @@ namespace ospray {
           }
         }
 
+        ImGui::Separator();
         ImGui::Separator();
 
         if (ImGui::Button("Close"))

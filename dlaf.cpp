@@ -35,16 +35,9 @@ namespace dlaf {
   // number of dimensions (must be 2 or 3)
   static constexpr int D = 3;
 
-  // default parameters (documented below)
-  static constexpr double DefaultParticleSpacing    = 1;
-  static constexpr double DefaultAttractionDistance = 3;
-  static constexpr double DefaultMinMoveDistance    = 1;
-  static constexpr int DefaultStubbornness          = 0;
-  static constexpr double DefaultStickiness         = 1;
-
   // boost is used for its spatial index
   using BoostPoint =
-      boost::geometry::model::point<double, D, boost::geometry::cs::cartesian>;
+      boost::geometry::model::point<float, D, boost::geometry::cs::cartesian>;
 
   using IndexValue = std::pair<BoostPoint, int>;
 
@@ -63,11 +56,11 @@ namespace dlaf {
   }
 
   // Random returns a uniformly distributed random number between lo and hi
-  static inline double Random(const double lo = 0, const double hi = 1)
+  static inline float Random(const float lo = 0, const float hi = 1)
   {
     static thread_local std::mt19937 gen(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());
-    std::uniform_real_distribution<double> dist(lo, hi);
+    std::uniform_real_distribution<float> dist(lo, hi);
     return dist(gen);
   }
 
@@ -88,15 +81,7 @@ namespace dlaf {
   class Model
   {
    public:
-    Model()
-        : m_ParticleSpacing(DefaultParticleSpacing),
-          m_AttractionDistance(DefaultAttractionDistance),
-          m_MinMoveDistance(DefaultMinMoveDistance),
-          m_Stubbornness(DefaultStubbornness),
-          m_Stickiness(DefaultStickiness),
-          m_BoundingRadius(0)
-    {
-    }
+    Model(DLAF_Params p = {}) : m_params(p) {}
 
     void Reserve(size_t numParticles)
     {
@@ -104,29 +89,9 @@ namespace dlaf {
       m_JoinAttempts.reserve(numParticles);
     }
 
-    void SetParticleSpacing(const double a)
+    size_t Size()
     {
-      m_ParticleSpacing = a;
-    }
-
-    void SetAttractionDistance(const double a)
-    {
-      m_AttractionDistance = a;
-    }
-
-    void SetMinMoveDistance(const double a)
-    {
-      m_MinMoveDistance = a;
-    }
-
-    void SetStubbornness(const int a)
-    {
-      m_Stubbornness = a;
-    }
-
-    void SetStickiness(const double a)
-    {
-      m_Stickiness = a;
+      return m_Points.size();
     }
 
     // Add adds a new particle with the specified parent particle
@@ -136,8 +101,8 @@ namespace dlaf {
       m_Index.insert(std::make_pair(ToBoost(p), id));
       m_Points.push_back(p);
       m_JoinAttempts.push_back(0);
-      m_BoundingRadius =
-          std::max(m_BoundingRadius, length(p) + m_AttractionDistance);
+      m_params.BoundingRadius = std::max(
+          m_params.BoundingRadius, length(p) + m_params.AttractionDistance);
     }
 
     // Nearest returns the index of the particle nearest the specified point
@@ -154,7 +119,7 @@ namespace dlaf {
     // RandomStartingPosition returns a random point to start a new particle
     vec3f RandomStartingPosition() const
     {
-      const double d = m_BoundingRadius;
+      const float d = m_params.BoundingRadius;
       return normalize(RandomInUnitSphere()) * d;
     }
 
@@ -162,7 +127,7 @@ namespace dlaf {
     // should be reset to a new random starting position
     bool ShouldReset(const vec3f &p) const
     {
-      return length(p) > m_BoundingRadius * 2;
+      return length(p) > m_params.BoundingRadius * 2;
     }
 
     // ShouldJoin returns true if the point should attach to the specified
@@ -171,16 +136,16 @@ namespace dlaf {
     bool ShouldJoin(const vec3f &p, const int parent)
     {
       m_JoinAttempts[parent]++;
-      if (m_JoinAttempts[parent] < m_Stubbornness) {
+      if (m_JoinAttempts[parent] < m_params.Stubbornness) {
         return false;
       }
-      return Random() <= m_Stickiness;
+      return Random() <= m_params.Stickiness;
     }
 
     // PlaceParticle computes the final placement of the particle.
     vec3f PlaceParticle(const vec3f &p, const int parent) const
     {
-      return lerp(m_ParticleSpacing, m_Points[parent], p);
+      return lerp(m_params.ParticleSpacing, m_Points[parent], p);
     }
 
     // Motionvec3f returns a vector specifying the direction that the
@@ -201,14 +166,15 @@ namespace dlaf {
       while (true) {
         // get distance to nearest other particle
         const int parent = Nearest(p);
-        const double d   = length(p - m_Points[parent]);
+        const float d   = length(p - m_Points[parent]);
 
         // check if close enough to join
-        if (d < m_AttractionDistance) {
+        if (d < m_params.AttractionDistance) {
           if (!ShouldJoin(p, parent)) {
             // push particle away a bit
-            p = lerp(
-                m_AttractionDistance + m_MinMoveDistance, m_Points[parent], p);
+            p = lerp(m_params.AttractionDistance + m_params.MinMoveDistance,
+                     m_Points[parent],
+                     p);
             continue;
           }
 
@@ -221,7 +187,8 @@ namespace dlaf {
         }
 
         // move randomly
-        const double m = std::max(m_MinMoveDistance, d - m_AttractionDistance);
+        const float m =
+            std::max(m_params.MinMoveDistance, d - m_params.AttractionDistance);
         p += normalize(Motionvec3f(p)) * m;
 
         // check if particle is too far away, reset if so
@@ -237,31 +204,9 @@ namespace dlaf {
     }
 
    private:
-    // m_ParticleSpacing defines the distance between particles that are
-    // joined together
-    double m_ParticleSpacing;
+    DLAF_Params m_params;
 
-    // m_AttractionDistance defines how close together particles must be in
-    // order to join together
-    double m_AttractionDistance;
-
-    // m_MinMoveDistance defines the minimum distance that a particle will move
-    // during its random walk
-    double m_MinMoveDistance;
-
-    // m_Stubbornness defines how many interactions must occur before a
-    // particle will allow another particle to join to it.
-    int m_Stubbornness;
-
-    // m_Stickiness defines the probability that a particle will allow another
-    // particle to join to it.
-    double m_Stickiness;
-
-    // m_BoundingRadius defines the radius of the bounding sphere that bounds
-    // all of the particles
-    double m_BoundingRadius;
-
-    // m_Points stores the final particle positions
+    // final particle positions
     containers::AlignedVector<vec3f> m_Points;
 
     // m_JoinAttempts tracks how many times other particles have attempted to
@@ -272,33 +217,34 @@ namespace dlaf {
     Index m_Index;
   };
 
-  containers::AlignedVector<vec3f> compute_points(float &amount_done)
+  containers::AlignedVector<vec3f> compute_points(DLAF_Params p,
+                                                  float &amount_done)
   {
     // create the model
-    Model model;
+    Model model(p);
 
     // add seed point(s)
 #if 1
-    model.Reserve(100000);
+    model.Reserve(p.NumParticles);
     model.Add(vec3f(0.f));
 #else
     {
       const int n    = 3600;
-      const double r = 1000;
+      const float r = 1000;
       for (int i = 0; i < n; i++) {
-        const double t = (double)i / n;
-        const double a = t * 2 * M_PI;
-        const double x = std::cos(a) * r;
-        const double y = std::sin(a) * r;
+        const float t = (float)i / n;
+        const float a = t * 2 * M_PI;
+        const float x = std::cos(a) * r;
+        const float y = std::sin(a) * r;
         model.Add(vec3f(x, y, 0));
       }
     }
 #endif
 
     // run diffusion-limited aggregation
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i < p.NumParticles; i++) {
       model.AddParticle();
-      amount_done = i / 100000.f;
+      amount_done = i / static_cast<float>(p.NumParticles);
     }
 
     return std::move(model.consumeFinalPoints());
