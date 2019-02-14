@@ -14,7 +14,7 @@
 ## limitations under the License.                                           ##
 ## ======================================================================== ##
 
-option(BUILD_PLUGIN_DLAF "Dlaf plugin" OFF)
+option(BUILD_PLUGIN_DLAF "dlaf plugin" OFF)
 
 if (BUILD_PLUGIN_DLAF)
 

@@ -20,16 +20,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <boost/function_output_iterator.hpp>
-#include <boost/geometry/geometry.hpp>
+// stl
 #include <chrono>
 #include <iostream>
 #include <random>
 #include <vector>
-
+// boost
+#include <boost/function_output_iterator.hpp>
+#include <boost/geometry/geometry.hpp>
+// ospcommon
 #include "ospcommon/vec.h"
 
 namespace dlaf {
+
+  using namespace ospcommon;
 
   // number of dimensions (must be 2 or 3)
   static constexpr int D = 2;
@@ -51,93 +55,9 @@ namespace dlaf {
       boost::geometry::index::rtree<IndexValue,
                                     boost::geometry::index::linear<4>>;
 
-  // Vector represents a point or a vector
-  class Vector
+  static inline BoostPoint ToBoost(const vec3f &v)
   {
-   public:
-    Vector() : m_X(0), m_Y(0), m_Z(0) {}
-
-    Vector(double x, double y) : m_X(x), m_Y(y), m_Z(0) {}
-
-    Vector(double x, double y, double z) : m_X(x), m_Y(y), m_Z(z) {}
-
-    double X() const
-    {
-      return m_X;
-    }
-
-    double Y() const
-    {
-      return m_Y;
-    }
-
-    double Z() const
-    {
-      return m_Z;
-    }
-
-    BoostPoint ToBoost() const
-    {
-      return BoostPoint(m_X, m_Y, m_Z);
-    }
-
-    double Length() const
-    {
-      return std::sqrt(m_X * m_X + m_Y * m_Y + m_Z * m_Z);
-    }
-
-    double LengthSquared() const
-    {
-      return m_X * m_X + m_Y * m_Y + m_Z * m_Z;
-    }
-
-    double Distance(const Vector &v) const
-    {
-      const double dx = m_X - v.m_X;
-      const double dy = m_Y - v.m_Y;
-      const double dz = m_Z - v.m_Z;
-      return std::sqrt(dx * dx + dy * dy + dz * dz);
-    }
-
-    Vector Normalized() const
-    {
-      const double m = 1 / Length();
-      return Vector(m_X * m, m_Y * m, m_Z * m);
-    }
-
-    Vector operator+(const Vector &v) const
-    {
-      return Vector(m_X + v.m_X, m_Y + v.m_Y, m_Z + v.m_Z);
-    }
-
-    Vector operator-(const Vector &v) const
-    {
-      return Vector(m_X - v.m_X, m_Y - v.m_Y, m_Z - v.m_Z);
-    }
-
-    Vector operator*(const double a) const
-    {
-      return Vector(m_X * a, m_Y * a, m_Z * a);
-    }
-
-    Vector &operator+=(const Vector &v)
-    {
-      m_X += v.m_X;
-      m_Y += v.m_Y;
-      m_Z += v.m_Z;
-      return *this;
-    }
-
-   private:
-    double m_X;
-    double m_Y;
-    double m_Z;
-  };
-
-  // Lerp linearly interpolates from a to b by distance.
-  Vector Lerp(const Vector &a, const Vector &b, const double d)
-  {
-    return a + (b - a).Normalized() * d;
+    return BoostPoint(v.x, v.y, v.z);
   }
 
   // Random returns a uniformly distributed random number between lo and hi
@@ -151,12 +71,12 @@ namespace dlaf {
 
   // RandomInUnitSphere returns a random, uniformly distributed point inside the
   // unit sphere (radius = 1)
-  Vector RandomInUnitSphere()
+  vec3f RandomInUnitSphere()
   {
     while (true) {
-      const Vector p =
-          Vector(Random(-1, 1), Random(-1, 1), D == 2 ? 0 : Random(-1, 1));
-      if (p.LengthSquared() < 1) {
+      const vec3f p =
+          vec3f(Random(-1, 1), Random(-1, 1), D == 2 ? 0 : Random(-1, 1));
+      if (length(p) * length(p) < 1) {
         return p;
       }
     }
@@ -202,47 +122,47 @@ namespace dlaf {
     }
 
     // Add adds a new particle with the specified parent particle
-    void Add(const Vector &p, const int parent = -1)
+    void Add(const vec3f &p, const int parent = -1)
     {
       const int id = m_Points.size();
-      m_Index.insert(std::make_pair(p.ToBoost(), id));
+      m_Index.insert(std::make_pair(ToBoost(p), id));
       m_Points.push_back(p);
       m_JoinAttempts.push_back(0);
       m_BoundingRadius =
-          std::max(m_BoundingRadius, p.Length() + m_AttractionDistance);
-      std::cout << id << "," << parent << "," << p.X() << "," << p.Y() << ","
-                << p.Z() << std::endl;
+          std::max(m_BoundingRadius, length(p) + m_AttractionDistance);
+      std::cout << id << "," << parent << "," << p.x << "," << p.y << "," << p.z
+                << std::endl;
     }
 
     // Nearest returns the index of the particle nearest the specified point
-    int Nearest(const Vector &point) const
+    int Nearest(const vec3f &point) const
     {
       int result = -1;
       m_Index.query(
-          boost::geometry::index::nearest(point.ToBoost(), 1),
+          boost::geometry::index::nearest(ToBoost(point), 1),
           boost::make_function_output_iterator(
               [&result](const auto &value) { result = value.second; }));
       return result;
     }
 
     // RandomStartingPosition returns a random point to start a new particle
-    Vector RandomStartingPosition() const
+    vec3f RandomStartingPosition() const
     {
       const double d = m_BoundingRadius;
-      return RandomInUnitSphere().Normalized() * d;
+      return normalize(RandomInUnitSphere()) * d;
     }
 
     // ShouldReset returns true if the particle has gone too far away and
     // should be reset to a new random starting position
-    bool ShouldReset(const Vector &p) const
+    bool ShouldReset(const vec3f &p) const
     {
-      return p.Length() > m_BoundingRadius * 2;
+      return length(p) > m_BoundingRadius * 2;
     }
 
     // ShouldJoin returns true if the point should attach to the specified
     // parent particle. This is only called when the point is already within
     // the required attraction distance.
-    bool ShouldJoin(const Vector &p, const int parent)
+    bool ShouldJoin(const vec3f &p, const int parent)
     {
       m_JoinAttempts[parent]++;
       if (m_JoinAttempts[parent] < m_Stubbornness) {
@@ -252,15 +172,15 @@ namespace dlaf {
     }
 
     // PlaceParticle computes the final placement of the particle.
-    Vector PlaceParticle(const Vector &p, const int parent) const
+    vec3f PlaceParticle(const vec3f &p, const int parent) const
     {
-      return Lerp(m_Points[parent], p, m_ParticleSpacing);
+      return lerp(m_ParticleSpacing, m_Points[parent], p);
     }
 
-    // MotionVector returns a vector specifying the direction that the
+    // Motionvec3f returns a vector specifying the direction that the
     // particle should move for one iteration. The distance that it will move
     // is determined by the algorithm.
-    Vector MotionVector(const Vector &p) const
+    vec3f Motionvec3f(const vec3f &p) const
     {
       return RandomInUnitSphere();
     }
@@ -269,20 +189,20 @@ namespace dlaf {
     void AddParticle()
     {
       // compute particle starting location
-      Vector p = RandomStartingPosition();
+      vec3f p = RandomStartingPosition();
 
       // do the random walk
       while (true) {
         // get distance to nearest other particle
         const int parent = Nearest(p);
-        const double d   = p.Distance(m_Points[parent]);
+        const double d   = length(p - m_Points[parent]);
 
         // check if close enough to join
         if (d < m_AttractionDistance) {
           if (!ShouldJoin(p, parent)) {
             // push particle away a bit
-            p = Lerp(
-                m_Points[parent], p, m_AttractionDistance + m_MinMoveDistance);
+            p = lerp(
+                m_AttractionDistance + m_MinMoveDistance, m_Points[parent], p);
             continue;
           }
 
@@ -296,7 +216,7 @@ namespace dlaf {
 
         // move randomly
         const double m = std::max(m_MinMoveDistance, d - m_AttractionDistance);
-        p += MotionVector(p).Normalized() * m;
+        p += normalize(Motionvec3f(p)) * m;
 
         // check if particle is too far away, reset if so
         if (ShouldReset(p)) {
@@ -331,7 +251,7 @@ namespace dlaf {
     double m_BoundingRadius;
 
     // m_Points stores the final particle positions
-    std::vector<Vector> m_Points;
+    std::vector<vec3f> m_Points;
 
     // m_JoinAttempts tracks how many times other particles have attempted to
     // join with each finalized particle
@@ -348,7 +268,7 @@ namespace dlaf {
   Model model;
 
   // add seed point(s)
-  model.Add(Vector());
+  model.Add(vec3f());
 
   // run diffusion-limited aggregation
   for (int i = 0; i < 100000; i++) {
