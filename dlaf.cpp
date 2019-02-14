@@ -52,13 +52,18 @@ namespace dlaf {
       boost::geometry::index::rtree<IndexValue,
                                     boost::geometry::index::linear<4>>;
 
+  static inline float length2(const vec3f &v)
+  {
+    return v.x * v.x + v.y * v.y + v.z * v.z;
+  }
+
   static inline BoostPoint ToBoost(const vec3f &v)
   {
     return BoostPoint(v.x, v.y, v.z);
   }
 
   // Random returns a uniformly distributed random number between lo and hi
-  double Random(const double lo = 0, const double hi = 1)
+  static inline double Random(const double lo = 0, const double hi = 1)
   {
     static thread_local std::mt19937 gen(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -68,12 +73,12 @@ namespace dlaf {
 
   // RandomInUnitSphere returns a random, uniformly distributed point inside the
   // unit sphere (radius = 1)
-  vec3f RandomInUnitSphere()
+  static inline vec3f RandomInUnitSphere()
   {
     while (true) {
       const vec3f p =
           vec3f(Random(-1, 1), Random(-1, 1), D == 2 ? 0 : Random(-1, 1));
-      if (length(p) * length(p) < 1) {
+      if (length2(p) < 1) {
         return p;
       }
     }
@@ -91,6 +96,12 @@ namespace dlaf {
           m_Stickiness(DefaultStickiness),
           m_BoundingRadius(0)
     {
+    }
+
+    void Reserve(size_t numParticles)
+    {
+      m_Points.reserve(numParticles);
+      m_JoinAttempts.reserve(numParticles);
     }
 
     void SetParticleSpacing(const double a)
@@ -261,13 +272,14 @@ namespace dlaf {
     Index m_Index;
   };
 
-  containers::AlignedVector<vec3f> compute_points()
+  containers::AlignedVector<vec3f> compute_points(float &amount_done)
   {
     // create the model
     Model model;
 
     // add seed point(s)
 #if 1
+    model.Reserve(100000);
     model.Add(vec3f(0.f));
 #else
     {
@@ -284,8 +296,10 @@ namespace dlaf {
 #endif
 
     // run diffusion-limited aggregation
-    for (int i = 0; i < 100000; i++)
+    for (int i = 0; i < 100000; i++) {
       model.AddParticle();
+      amount_done = i / 100000.f;
+    }
 
     return std::move(model.consumeFinalPoints());
   }

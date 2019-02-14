@@ -21,6 +21,6 @@
 namespace dlaf {
   using namespace ospcommon;
 
-  containers::AlignedVector<vec3f> compute_points();
+  containers::AlignedVector<vec3f> compute_points(float &done);
 
 } // namespace dlaf

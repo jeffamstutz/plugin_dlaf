@@ -42,8 +42,10 @@ namespace ospray {
         ImGui::NewLine();
 
         static bool jobRunning = false;
+        static float done = 0.f;
 
         if (ImGui::Button("Compute New")) {
+          done = 0.f;
           job_scheduler::scheduleJob([&]() {
             jobRunning = true;
 
@@ -53,7 +55,7 @@ namespace ospray {
             auto sphere_centers = std::make_shared<DataVector3f>();
             sphere_centers->setName("spheres");
 
-            auto vertices     = dlaf::compute_points();
+            auto vertices     = dlaf::compute_points(done);
             sphere_centers->v = std::move(vertices);
 
             spheres_node->add(sphere_centers);
@@ -71,7 +73,7 @@ namespace ospray {
         }
 
         if (jobRunning)
-          ImGui::Text("...generating data...");
+          ImGui::Text("...generating data: %3.1f%% complete", 100 * done);
         else
           ImGui::NewLine();
 
