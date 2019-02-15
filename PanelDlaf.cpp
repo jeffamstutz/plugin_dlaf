@@ -40,18 +40,23 @@ namespace ospray {
         if (ImGui::Button("reset inputs"))
           params = dlaf::DLAF_Params();
 
+        const float defaultRadius = params.AttractionDistance / 2.f;
+
         static std::shared_ptr<sg::Node> radius_node =
-            sg::createNode("radius", "float", 1.f);
+            sg::createNode("radius", "float", defaultRadius);
 
         ImGui::NewLine();
         ImGui::Text("Data Generation Parameters:");
         ImGui::DragInt("# particles", &params.NumParticles, 10, 0, 1e9f);
         ImGui::DragFloat("spacing", &params.ParticleSpacing, 0.1f);
-        ImGui::DragFloat(
-            "attraction distance", &params.AttractionDistance, 0.1f);
+        ImGui::DragFloat("attraction distance",
+                         &params.AttractionDistance,
+                         0.1f,
+                         1e-3f,
+                         1e20f);
         ImGui::DragFloat("min move dist", &params.MinMoveDistance, 0.1f);
         ImGui::DragInt("stubbornness", &params.Stubbornness, 1);
-        ImGui::DragFloat("stickiness", &params.Stickiness, 0.1f);
+        ImGui::DragFloat("stickiness", &params.Stickiness, 0.1f, 1e-3f, 1e5f);
         ImGui::ColorEdit3("center color", (float *)&params.LowerColor.x);
         ImGui::ColorEdit3("outer color", (float *)&params.UpperColor.x);
         ImGui::NewLine();
@@ -73,9 +78,9 @@ namespace ospray {
         } else {
           if (ImGui::Button("compute new")) {
             done = 0.f;
-            job_scheduler::scheduleJob([&]() {
+            job_scheduler::scheduleJob([&, defaultRadius]() {
               jobRunning = true;
-              cancel = false;
+              cancel     = false;
 
               job_scheduler::Nodes retval;
               auto spheres_node = createNode("dlaf_spheres", "Spheres");
@@ -99,11 +104,11 @@ namespace ospray {
               spheres_node->createChild(
                   "bytes_per_sphere", "int", int(sizeof(vec3f)));
 
+              radius_node->setValue(defaultRadius);
+
               retval.push_back(spheres_node);
 
               jobRunning = false;
-
-              radius_node->setValue(1.f);
 
               return retval;
             });
