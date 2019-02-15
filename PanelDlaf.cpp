@@ -37,7 +37,7 @@ namespace ospray {
       if (ImGui::Begin("dlaf Panel", nullptr, flags)) {
         static dlaf::DLAF_Params params;
 
-        if (ImGui::Button("reset"))
+        if (ImGui::Button("reset inputs"))
           params = dlaf::DLAF_Params();
 
         static std::shared_ptr<sg::Node> radius_node =
@@ -61,17 +61,21 @@ namespace ospray {
         ImGui::NewLine();
 
         static bool jobRunning = false;
+        static bool cancel     = false;
         static float done      = 0.f;
 
         if (jobRunning) {
+          if (ImGui::Button("cancel"))
+            cancel = true;
           ImGui::Text("generating data: ");
           ImGui::SameLine();
           ImGui::ProgressBar(done);
         } else {
-          if (ImGui::Button("Compute New")) {
+          if (ImGui::Button("compute new")) {
             done = 0.f;
             job_scheduler::scheduleJob([&]() {
               jobRunning = true;
+              cancel = false;
 
               job_scheduler::Nodes retval;
               auto spheres_node = createNode("dlaf_spheres", "Spheres");
@@ -80,7 +84,7 @@ namespace ospray {
               auto sphere_centers = std::make_shared<DataVector3f>();
               sphere_centers->setName("spheres");
 
-              auto results      = dlaf::compute_points(params, done);
+              auto results      = dlaf::compute_points(params, done, cancel);
               sphere_centers->v = std::move(results.points);
 
               auto sphere_colors = std::make_shared<DataVector4f>();
@@ -104,6 +108,7 @@ namespace ospray {
               return retval;
             });
           }
+          ImGui::NewLine();
         }
 
         ImGui::Separator();

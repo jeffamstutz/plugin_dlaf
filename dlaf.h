@@ -53,6 +53,6 @@ namespace dlaf {
     containers::AlignedVector<vec4f> colors;
   };
 
-  DLAF_Results compute_points(DLAF_Params p, float &done);
+  DLAF_Results compute_points(DLAF_Params p, float &done, bool &cancel);
 
 }  // namespace dlaf

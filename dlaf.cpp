@@ -232,7 +232,7 @@ namespace dlaf {
   /////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
 
-  DLAF_Results compute_points(DLAF_Params p, float &amount_done)
+  DLAF_Results compute_points(DLAF_Params p, float &amount_done, bool &cancel)
   {
     DLAF_Results retval;
 
@@ -246,6 +246,9 @@ namespace dlaf {
 
     // run diffusion-limited aggregation
     for (int i = 0; i < p.NumParticles; i++) {
+      if (cancel)
+        return DLAF_Results();
+
       model.AddParticle();
       amount_done = i / static_cast<float>(p.NumParticles);
     }
