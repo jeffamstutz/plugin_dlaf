@@ -43,8 +43,8 @@ namespace dlaf {
     // all of the particles
     float BoundingRadius = 0;
     // color gradients per-sphere
-    vec4f LowerColor {0.f, 0.f, 0.f, 1.f};
-    vec4f UpperColor {1.f, 1.f, 1.f, 1.f};
+    vec4f LowerColor {0.f, 0.f, 1.f, 1.f};
+    vec4f UpperColor {0.f, 1.f, 0.f, 1.f};
   };
 
   struct DLAF_Results

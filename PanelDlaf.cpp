@@ -99,6 +99,8 @@ namespace ospray {
 
               jobRunning = false;
 
+              radius_node->setValue(1.f);
+
               return retval;
             });
           }
