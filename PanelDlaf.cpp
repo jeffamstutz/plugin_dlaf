@@ -40,7 +40,11 @@ namespace ospray {
         if (ImGui::Button("reset"))
           params = dlaf::DLAF_Params();
 
+        static std::shared_ptr<sg::Node> radius_node =
+            sg::createNode("radius", "float", 1.f);
+
         ImGui::NewLine();
+        ImGui::Text("Data Generation Parameters:");
         ImGui::DragInt("# particles", &params.NumParticles, 10, 0, 1e9f);
         ImGui::DragFloat("spacing", &params.ParticleSpacing, 0.1f);
         ImGui::DragFloat(
@@ -50,7 +54,10 @@ namespace ospray {
         ImGui::DragFloat("stickiness", &params.Stickiness, 0.1f);
         ImGui::ColorEdit3("center color", (float *)&params.LowerColor.x);
         ImGui::ColorEdit3("outer color", (float *)&params.UpperColor.x);
+        ImGui::NewLine();
 
+        ImGui::Text("Scene Parameters:");
+        guiSGSingleNode("point radius", *radius_node);
         ImGui::NewLine();
 
         static bool jobRunning = false;
@@ -83,8 +90,8 @@ namespace ospray {
 
               spheres_node->add(sphere_centers);
               spheres_node->add(sphere_colors);
+              spheres_node->add(radius_node);
 
-              spheres_node->createChild("radius", "float", 1.f);
               spheres_node->createChild(
                   "bytes_per_sphere", "int", int(sizeof(vec3f)));
 
