@@ -48,7 +48,8 @@ namespace ospray {
         ImGui::DragFloat("min move dist", &params.MinMoveDistance, 0.1f);
         ImGui::DragInt("stubbornness", &params.Stubbornness, 1);
         ImGui::DragFloat("stickiness", &params.Stickiness, 0.1f);
-        ImGui::NewLine();
+        ImGui::ColorEdit3("center color", (float *)&params.LowerColor.x);
+        ImGui::ColorEdit3("outer color", (float *)&params.UpperColor.x);
 
         ImGui::NewLine();
 
@@ -67,14 +68,21 @@ namespace ospray {
 
               job_scheduler::Nodes retval;
               auto spheres_node = createNode("dlaf_spheres", "Spheres");
+              spheres_node->remove("material");
 
               auto sphere_centers = std::make_shared<DataVector3f>();
               sphere_centers->setName("spheres");
 
-              auto vertices     = dlaf::compute_points(params, done);
-              sphere_centers->v = std::move(vertices);
+              auto results      = dlaf::compute_points(params, done);
+              sphere_centers->v = std::move(results.points);
+
+              auto sphere_colors = std::make_shared<DataVector4f>();
+              sphere_colors->setName("color");
+
+              sphere_colors->v = std::move(results.colors);
 
               spheres_node->add(sphere_centers);
+              spheres_node->add(sphere_colors);
 
               spheres_node->createChild("radius", "float", 1.f);
               spheres_node->createChild(

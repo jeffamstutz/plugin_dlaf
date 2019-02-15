@@ -27,6 +27,8 @@ SOFTWARE.
 // boost
 #include <boost/function_output_iterator.hpp>
 #include <boost/geometry/geometry.hpp>
+// ospcommon
+#include "ospcommon/box.h"
 
 namespace dlaf {
 
@@ -94,6 +96,11 @@ namespace dlaf {
       return m_Points.size();
     }
 
+    box3f Bounds()
+    {
+      return m_Bounds;
+    }
+
     // Add adds a new particle with the specified parent particle
     void Add(const vec3f &p, const int parent = -1)
     {
@@ -103,6 +110,7 @@ namespace dlaf {
       m_JoinAttempts.push_back(0);
       m_params.BoundingRadius = std::max(
           m_params.BoundingRadius, length(p) + m_params.AttractionDistance);
+      m_Bounds.extend(p);
     }
 
     // Nearest returns the index of the particle nearest the specified point
@@ -166,7 +174,7 @@ namespace dlaf {
       while (true) {
         // get distance to nearest other particle
         const int parent = Nearest(p);
-        const float d   = length(p - m_Points[parent]);
+        const float d    = length(p - m_Points[parent]);
 
         // check if close enough to join
         if (d < m_params.AttractionDistance) {
@@ -206,6 +214,9 @@ namespace dlaf {
    private:
     DLAF_Params m_params;
 
+    // bounding box of all the points
+    box3f m_Bounds;
+
     // final particle positions
     containers::AlignedVector<vec3f> m_Points;
 
@@ -217,29 +228,21 @@ namespace dlaf {
     Index m_Index;
   };
 
-  containers::AlignedVector<vec3f> compute_points(DLAF_Params p,
-                                                  float &amount_done)
+  /////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+
+  DLAF_Results compute_points(DLAF_Params p, float &amount_done)
   {
+    DLAF_Results retval;
+
     // create the model
     Model model(p);
+    model.Reserve(p.NumParticles);
+    retval.colors.resize(p.NumParticles);
 
     // add seed point(s)
-#if 1
-    model.Reserve(p.NumParticles);
     model.Add(vec3f(0.f));
-#else
-    {
-      const int n    = 3600;
-      const float r = 1000;
-      for (int i = 0; i < n; i++) {
-        const float t = (float)i / n;
-        const float a = t * 2 * M_PI;
-        const float x = std::cos(a) * r;
-        const float y = std::sin(a) * r;
-        model.Add(vec3f(x, y, 0));
-      }
-    }
-#endif
 
     // run diffusion-limited aggregation
     for (int i = 0; i < p.NumParticles; i++) {
@@ -247,7 +250,19 @@ namespace dlaf {
       amount_done = i / static_cast<float>(p.NumParticles);
     }
 
-    return std::move(model.consumeFinalPoints());
+    retval.points = std::move(model.consumeFinalPoints());
+
+    // calculate colors
+    const box3f bounds  = model.Bounds();
+    const vec3f center  = bounds.center();
+    const float maxDist = 0.5f * reduce_max(bounds.size());
+    for (int i = 0; i < p.NumParticles; i++) {
+      const vec3f &pt  = retval.points[i];
+      const float dist = length(pt - center);
+      retval.colors[i] = lerp(dist/maxDist, p.LowerColor, p.UpperColor);
+    }
+
+    return retval;
   }
 
 }  // namespace dlaf
